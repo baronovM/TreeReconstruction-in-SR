@@ -29,32 +29,43 @@ def _columns(fs, args, shape):
     return np.column_stack([np.broadcast_to(np.asarray(v, float), shape).ravel() for v in fs(*args)])
 
 
-def fit(expr, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7), max_basis=0.1):
+def linear_params(expr, params):
+    # набор параметров, по которым выражение линейно совместно (жадно, в порядке узлов):
+    # в каждом одночлене не больше одного такого параметра, и в первой степени
+    nonlin, lin = nonlinear_params(expr, params), []
+    terms = [{b: d for b, d in t.as_powers_dict().items() if b in params} for t in sp.Add.make_args(sp.expand(expr))]
+    for p in params:
+        if p not in nonlin and all(t.get(p, 0) <= 1 and not (p in t and any(q in t for q in lin)) for t in terms):
+            lin.append(p)
+    return lin
+
+
+def fit(expr, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7)):
     # data: {символ переменной: массив}; prior: {символ параметра: (матожидание, ст.откл.)}.
-    # Мультистарт: нелинейные параметры = mean + k*std. Возвращает (NRMSE, значения параметров) лучшего старта.
-    # ls+lm с базисом больше max_basis * (число наблюдений) — неудача: такой МНК подгоняет что угодно
-    params = sorted(expr.free_symbols & set(prior), key=str)
+    # ls+lm: МНК по совместно линейным параметрам при фиксированных остальных, остальные — LM (variable projection).
+    # Мультистарт: параметры внутри функций = mean + k*std. Возвращает (NRMSE, значения параметров) лучшего старта
+    params = [p for p in prior if p in expr.free_symbols]
     variables = sorted(expr.free_symbols - set(params), key=str)
     data = [data[v] for v in variables]
-    theta = nonlinear_params(expr, params)
+    nonlin = nonlinear_params(expr, params)
     shape, y = np.shape(y), np.ravel(y)
     if method == 'ls+lm':
-        basis, _ = linearize(expr, variables, theta)
-        if len(basis) > max_basis * len(y):
-            return np.inf, {}
-        phi = sp.lambdify([*variables, *theta], basis, 'numpy')
+        lin = linear_params(expr, params)
+        theta = [p for p in params if p not in lin]
+        # f = f0(θ) + Σ_p p · ∂f/∂p(θ), p из lin
+        phi = sp.lambdify([*variables, *theta], [expr.subs({p: 0 for p in lin}), *(sp.diff(expr, p) for p in lin)], 'numpy')
 
         def solve(th):
             A = _columns(phi, [*data, *th], shape)
-            c = np.linalg.lstsq(A, y, rcond=None)[0]
-            return A @ c - y, c
+            c = np.linalg.lstsq(A[:, 1:], y - A[:, 0], rcond=None)[0]
+            return A[:, 1:] @ c + A[:, 0] - y, c
 
         def run(start):
             th = [start[p] for p in theta]
             if theta:
                 th = least_squares(lambda th: solve(th)[0], th, method='lm').x
             r, c = solve(th)
-            return r, dict(zip(theta, th)) | dict(zip(basis, c))
+            return r, dict(zip(theta, th)) | dict(zip(lin, c))
     elif method == 'lm':
         f = sp.lambdify([*variables, *params], expr, 'numpy')
         model = lambda p: np.broadcast_to(f(*data, *p), shape).ravel() - y
@@ -67,8 +78,8 @@ def fit(expr, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7), max_basi
     else:
         raise ValueError(method)
     best = None
-    for k in ks if theta else [0]:
-        start = {p: prior[p][0] + (k * prior[p][1] if p in theta else 0) for p in params}
+    for k in ks if nonlin else [0]:
+        start = {p: prior[p][0] + (k * prior[p][1] if p in nonlin else 0) for p in params}
         r, values = run(start)
         err = float(np.sqrt(np.mean(r ** 2)) / np.std(y))
         if best is None or err < best[0]:
