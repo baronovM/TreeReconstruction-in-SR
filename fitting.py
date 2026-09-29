@@ -19,27 +19,33 @@ def linearize(expr, variables, theta):
     return list(groups), list(groups.values())
 
 
-def canonical(expr, variables, params):
+def canonical(expr, params):
     # класс эквивалентности модели с точностью до значений линейных коэффициентов
+    variables = expr.free_symbols - set(params)
     return frozenset(linearize(expr, variables, nonlinear_params(expr, params))[0])
 
 
-def _columns(fs, args, n):
-    return np.column_stack([np.broadcast_to(np.asarray(v, float), (n,)) for v in fs(*args)])
+def _columns(fs, args, shape):
+    return np.column_stack([np.broadcast_to(np.asarray(v, float), shape).ravel() for v in fs(*args)])
 
 
-def fit(expr, variables, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7)):
-    # prior: {символ: (матожидание, ст.откл.)}. Мультистарт: нелинейные параметры = mean + k*std.
-    # Возвращает (NRMSE, значения параметров) лучшего старта
-    params = sorted(expr.free_symbols - set(variables), key=str)
+def fit(expr, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7), max_basis=0.1):
+    # data: {символ переменной: массив}; prior: {символ параметра: (матожидание, ст.откл.)}.
+    # Мультистарт: нелинейные параметры = mean + k*std. Возвращает (NRMSE, значения параметров) лучшего старта.
+    # ls+lm с базисом больше max_basis * (число наблюдений) — неудача: такой МНК подгоняет что угодно
+    params = sorted(expr.free_symbols & set(prior), key=str)
+    variables = sorted(expr.free_symbols - set(params), key=str)
+    data = [data[v] for v in variables]
     theta = nonlinear_params(expr, params)
-    n = len(y)
+    shape, y = np.shape(y), np.ravel(y)
     if method == 'ls+lm':
         basis, _ = linearize(expr, variables, theta)
+        if len(basis) > max_basis * len(y):
+            return np.inf, {}
         phi = sp.lambdify([*variables, *theta], basis, 'numpy')
 
         def solve(th):
-            A = _columns(phi, [*data, *th], n)
+            A = _columns(phi, [*data, *th], shape)
             c = np.linalg.lstsq(A, y, rcond=None)[0]
             return A @ c - y, c
 
@@ -51,7 +57,7 @@ def fit(expr, variables, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7
             return r, dict(zip(theta, th)) | dict(zip(basis, c))
     elif method == 'lm':
         f = sp.lambdify([*variables, *params], expr, 'numpy')
-        model = lambda p: np.broadcast_to(f(*data, *p), (n,)) - y
+        model = lambda p: np.broadcast_to(f(*data, *p), shape).ravel() - y
 
         def run(start):
             p = [start[q] for q in params]
