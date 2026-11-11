@@ -44,6 +44,9 @@ def fit(expr, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7)):
     # data: {символ переменной: массив}; prior: {символ параметра: (матожидание, ст.откл.)}.
     # ls+lm: МНК по совместно линейным параметрам при фиксированных остальных, остальные — LM (variable projection).
     # Мультистарт: параметры внутри функций = mean + k*std. Возвращает (NRMSE, значения параметров) лучшего старта
+    # параметр при тождественно нулевом подвыражении (dot(cross(v, B), v)) пропадает после раскрытия скобок:
+    # на функцию он не влияет, но в нераскрытом виде ломал бы проверку совместной линейности
+    expr = expr.subs({p: 0 for p in expr.free_symbols - sp.expand(expr).free_symbols if p in prior})
     params = [p for p in prior if p in expr.free_symbols]
     variables = sorted(expr.free_symbols - set(params), key=str)
     data = [data[v] for v in variables]
