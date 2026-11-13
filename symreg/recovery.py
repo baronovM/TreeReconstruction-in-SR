@@ -11,19 +11,21 @@ except ImportError:
 # ins[i] — типы слотов аргументов строки i, of[t] — маска столбцов типа t
 def _greedy(P, ins, of, nf, eps, depth_first):
     A, used, queue = np.zeros(P.shape, int), {0}, [0]
+    threshold = max(eps, 0)
 
     def pick(f):
         row = P[f].copy()
-        row[list(used)] = 0
+        row[list(used)] = -1
         chosen = []
         for t in ins[f]:
-            j = np.where(of[t], row, -1).argmax()
-            if row[j] < eps or not of[t][j]:
-                var = np.where(of[t][nf:], P[f, nf:], -1)
-                if var.max() < 0:
+            weights = np.where(of[t], row, -1)
+            j = weights.argmax()
+            if weights[j] < threshold:
+                leaves = weights[nf:]
+                if leaves.max(initial=-1) < 0:
                     continue
-                j = var.argmax() + nf
-            row[j], A[f, j] = 0, 1
+                j = leaves.argmax() + nf
+            row[j], A[f, j] = -1, 1
             chosen.append(j)
         return [j for j in chosen if j < nf]
 

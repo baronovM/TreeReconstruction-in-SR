@@ -10,12 +10,12 @@ From the repository root, using Python 3.12 on Windows:
 
 ```powershell
 py -3.12 -m venv .venv
-.venv/Scripts/python -m pip install deap sympy zss numpy scipy matplotlib networkx pydot tqdm dysts==0.96
+.venv/Scripts/python -m pip install deap sympy zss numpy scipy matplotlib networkx pydot tqdm
 .venv/Scripts/python -m unittest
 .venv/Scripts/python -m demos.vdp --quick
 ```
 
-Install Graphviz and make sure `dot` is on your `PATH` to render expression trees. The quick run saves plots and NumPy results to `figures/quick/`. Use `demos.lv`, `demos.lorenz`, or `demos.mhd` to select another model, and omit `--quick` to run with the model's full defaults. The Lorenz experiment uses the reference equations provided by `dysts` to generate trajectories and derivative targets.
+Install Graphviz and make sure `dot` is on your `PATH` to render expression trees. The quick run saves plots and NumPy results to `figures/quick/`. Use `demos.lv`, `demos.lorenz`, or `demos.mhd` to select another model, and omit `--quick` to run with the model's full defaults.
 
 ## Repository layout
 

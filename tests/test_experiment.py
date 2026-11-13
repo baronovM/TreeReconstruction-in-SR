@@ -35,16 +35,17 @@ class TestData(unittest.TestCase):
             with self.subTest(model=name):
                 self.assertEqual([np.shape(y) for y in ys], shapes)
 
-    def test_lorenz_trees_match_reference_dynamics(self):
+    def test_lorenz_derivatives_match_equations(self):
         rng = np.random.default_rng(0)
         exp = Experiment('lorenz')
         values = exp.sample_params(rng)
         data, ys = exp.simulate(values, rng, T=2, n=100)
-        for eq, y in zip(exp.eqs, ys, strict=True):
-            with self.subTest(target=eq.target):
-                self.assertEqual(y.shape, (100,))
-                np.testing.assert_allclose(eq.G.evaluate(eq.tree, data, values), y, atol=1e-10)
-                self.assertTrue(all(np.isfinite(y).all() for y in ys))
+        x, y, z = (data[Field(axis)] for axis in 'xyz')
+        params = {str(p): v for p, v in values.items()}
+        sigma, rho, beta = -params['neg_sigma'], params['rho'], -params['neg_beta']
+        self.assertEqual(np.shape(ys), (3, 100))
+        self.assertTrue(np.isfinite(ys).all())
+        np.testing.assert_allclose(ys, [sigma * (y - x), rho * x - x * z - y, x * y - beta * z], atol=1e-10)
 
 
 class TestEquation(unittest.TestCase):

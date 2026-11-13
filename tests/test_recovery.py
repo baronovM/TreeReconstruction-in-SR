@@ -48,14 +48,34 @@ class TestRestore(unittest.TestCase):
         with self.assertRaises(ValueError):
             restore('nope', eq.M, eq.G.ins, eq.G.types)
 
-    @unittest.expectedFailure
     def test_fallback_picks_distinct_variables(self):
-        # известный баг: все вероятности строки mul < eps -> оба слота берут одну и ту же лучшую переменную
-        G = Grammar([Node('mul', 'mul', 2)], ['x', 'y'])
-        P = np.array([[1., 0, 0], [0, 0, 0]])
+        G = Grammar([Node('mul', 'mul', 2)], ['x', 'y', 'z'])
+        for best in (2e-5, 0.8):
+            P = np.array([[1., 0, 0, 0], [0, 0, best, 1e-5]])
+            for method in METHODS:
+                if method.endswith('prim'):
+                    continue
+                with self.subTest(method=method, best=best):
+                    A = restore(method, P, G.ins, G.types)
+                    self.assertEqual(str(G.from_matrix(A)), 'mul(y, z)')
+
+    def test_fallback_can_reuse_variable_for_another_parent(self):
+        G = Grammar([Node('mul', 'mul', 2), Node('sq', 'sq', 1)], ['x'])
+        P = np.array([[1., 0, 0], [0, 1, 0], [0, 0, 0]])
         for method in ('dfs', 'bfs'):
             with self.subTest(method=method):
-                self.assertEqual(restore(method, P, G.ins, G.types)[1].sum(), 2)
+                A = restore(method, P, G.ins, G.types)
+                self.assertEqual(str(G.from_matrix(A)), 'mul(sq(x), x)')
+
+    def test_fallback_leaves_slot_empty_when_no_leaf_is_available(self):
+        G = Grammar([Node('mul', 'mul', 2)], ['x'])
+        P = np.array([[1., 0], [0, 0]])
+        for method in ('dfs', 'bfs'):
+            with self.subTest(method=method):
+                A = restore(method, P, G.ins, G.types)
+                np.testing.assert_array_equal(A, [[1, 0], [0, 1]])
+                with self.assertRaises(ValueError):
+                    G.from_matrix(A)
 
 
 if __name__ == '__main__':

@@ -4,19 +4,10 @@ import numpy as np
 from .trees import AXES, E, Node
 
 
-def lorenz_rhs(values):
-    from dysts.flows import Lorenz
-
-    params = {str(p): v for p, v in values.items()}
-    flow = Lorenz(parameters=dict(sigma=-params['neg_sigma'], rho=params['rho'], beta=-params['neg_beta']))
-    return flow.rhs
-
-
 # лишние узлы словаря, которых нет в истинной модели
 EXTRA = [Node('aff2', 'aff', 1, [('b0', 0.0, 0.0), ('b1', 1.0, 0.0)]), Node('mul2', 'mul', 2), Node('sq2', 'sq', 1)]
 # equations: (цель, формула с аргументами в порядке столбцов M, узлы словаря); types — типы переменных;
 # ode: производная состояния по состоянию s и значениям правых частей ys; 't' — последняя переменная.
-# rhs: фабрика правой части из параметров, если она задана внешней библиотекой.
 # Модель без ic — поля в пространстве: данные — снимок случайных гладких полей (Fields).
 MODELS = {
     # ẍ = mu (1 - x²) ẋ - x + A sin(omega t);  mu, A — линейные, omega — нелинейный
@@ -38,7 +29,9 @@ MODELS = {
                    ('dy', 'mul(aff(x), y)', [Node('mul', 'mul', 2),
                                               Node('aff', 'aff', 1, [('gamma', -0.4, 0.04), ('delta', 0.1, 0.01)])]),
                ]),
-    'lorenz': dict(title='Lorenz', variables=['x', 'y', 'z'], ic=(1, 10), rhs=lorenz_rhs,
+    # ẋ = σ(y - x), ẏ = ρx - xz - y, ż = xy - βz
+    'lorenz': dict(title='Lorenz', variables=['x', 'y', 'z'], ic=(1, 10),
+                   ode=lambda s, ys: ys,
                    equations=[
                        ('dx', 'sub(x, y)', [Node('sub', 'sub', 2, [('neg_sigma', -10.0, 0.5)])]),
                        ('dy', 'add3(mul(x, z), x, y)', [

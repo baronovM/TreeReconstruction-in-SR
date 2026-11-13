@@ -69,19 +69,13 @@ class Experiment:
             symbols = self.eqs[0].G.symbols
             has_t = self.model['variables'][-1] == 't'
             args = lambda t, s: (*s, t) if has_t else (*s,)
-            reference = self.model['rhs'](values) if 'rhs' in self.model else None
-            if reference is not None:
-                rhs = lambda t, s: reference(s, t)
-            else:
-                fs = [sp.lambdify([*symbols, *values], eq.expr, 'numpy') for eq in self.eqs]
-                v = list(values.values())
-                rhs = lambda t, s: self.model['ode'](s, [f(*args(t, s), *v) for f in fs])
+            fs = [sp.lambdify([*symbols, *values], eq.expr, 'numpy') for eq in self.eqs]
+            v = list(values.values())
+            rhs = lambda t, s: self.model['ode'](s, [f(*args(t, s), *v) for f in fs])
             ts = np.linspace(0, T, n)
             sol = solve_ivp(rhs, (0, T), rng.uniform(*self.model['ic'], len(self.model['variables']) - has_t),
                             t_eval=ts, method='LSODA', rtol=1e-9, atol=1e-9)
             data = dict(zip(symbols, args(ts, sol.y)))
-            if reference is not None:
-                return data, list(reference(sol.y.T, ts))
         return data, [eq.G.evaluate(eq.tree, data, values) for eq in self.eqs]
 
     def run(self, repeats, trials, alphas, seed=0):
