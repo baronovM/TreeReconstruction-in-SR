@@ -1,4 +1,4 @@
-# Общий сценарий эксперимента для demos/vdp.py, lv.py, mhd.py: параметры по умолчанию задаёт файл модели,
+# Общий сценарий эксперимента: параметры по умолчанию задаёт файл модели,
 # их можно переопределить из командной строки; --quick — быстрый прогон в figures/quick, не затирая результаты.
 import argparse
 from pathlib import Path
@@ -25,7 +25,7 @@ def run_model(name, repeats, trials, alphas):
     rng = np.random.default_rng(1)
     exp = Experiment(name)
     print(exp.describe())
-    if 'ode' in exp.model:
+    if 'ic' in exp.model:
         plot_phase(exp, rng)
     plot_tree(exp, rng)
 

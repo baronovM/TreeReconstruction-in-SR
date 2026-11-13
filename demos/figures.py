@@ -8,7 +8,7 @@ from symreg.plots import plot_accuracy, plot_phase, plot_summary, plot_tree
 for name in MODELS:
     rng = np.random.default_rng(1)
     exp = Experiment(name)
-    if 'ode' in exp.model:
+    if 'ic' in exp.model:
         plot_phase(exp, rng)
     plot_tree(exp, rng)
     for f in FIG.glob(f'{name}_results_*.npz'):

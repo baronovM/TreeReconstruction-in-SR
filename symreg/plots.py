@@ -16,7 +16,7 @@ plt.rcParams.update({'font.family': 'serif', 'font.serif': ['DejaVu Serif'], 'ma
 TITLES = {'exact': r'exact match $\hat{M} = M$', 'sympy': 'symbolic equivalence', 'zss=0': 'zero tree edit distance',
           'fit ls+lm': 'data fit, LS + LM', 'fit lm': 'data fit, LM', 'zss': 'mean tree edit distance'}
 label = lambda m: m.upper().replace('KMST', 'k-MST').replace('_', '+').replace('PRIM', 'Prim')
-TEX = {'dx': r'\dot{x}', 'ddx': r'\ddot{x}', 'dy': r'\dot{y}', 'v': r'\mathbf{v}', 'B': r'\mathbf{B}',
+TEX = {'dx': r'\dot{x}', 'ddx': r'\ddot{x}', 'dy': r'\dot{y}', 'dz': r'\dot{z}', 'v': r'\mathbf{v}', 'B': r'\mathbf{B}',
        'drho': r'\partial_t \rho', 'dm': r'\partial_t (\rho \mathbf{v})', 'dB': r'\partial_t \mathbf{B}'}
 tex = lambda v: f'${TEX.get(v, sp.latex(sp.Symbol(v)))}$'
 

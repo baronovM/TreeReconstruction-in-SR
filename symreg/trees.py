@@ -46,6 +46,7 @@ KINDS = {
     'aff': lambda w: lambda a: w[0] + w[1] * a,
     'sin': lambda w: lambda a: sp.sin(w[0] * a),
     'mul': op(lambda a, b: a * b),
+    'sub': op(lambda a, b: a - b),
     'sq': op(lambda a: a * a.T if isinstance(a, sp.MatrixBase) else a ** 2),  # вектор: a⊗a
     'dot': op(lambda a, b: a.dot(b)),
     'cross': op(lambda a, b: a.cross(b)),

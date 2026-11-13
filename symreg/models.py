@@ -3,11 +3,21 @@ import numpy as np
 
 from .trees import AXES, E, Node
 
+
+def lorenz_rhs(values):
+    from dysts.flows import Lorenz
+
+    params = {str(p): v for p, v in values.items()}
+    flow = Lorenz(parameters=dict(sigma=-params['neg_sigma'], rho=params['rho'], beta=-params['neg_beta']))
+    return flow.rhs
+
+
 # лишние узлы словаря, которых нет в истинной модели
 EXTRA = [Node('aff2', 'aff', 1, [('b0', 0.0, 0.0), ('b1', 1.0, 0.0)]), Node('mul2', 'mul', 2), Node('sq2', 'sq', 1)]
 # equations: (цель, формула с аргументами в порядке столбцов M, узлы словаря); types — типы переменных;
 # ode: производная состояния по состоянию s и значениям правых частей ys; 't' — последняя переменная.
-# Модель без ode — поля в пространстве: данные — снимок случайных гладких полей (Fields)
+# rhs: фабрика правой части из параметров, если она задана внешней библиотекой.
+# Модель без ic — поля в пространстве: данные — снимок случайных гладких полей (Fields).
 MODELS = {
     # ẍ = mu (1 - x²) ẋ - x + A sin(omega t);  mu, A — линейные, omega — нелинейный
     'vdp': dict(title='Forced Van der Pol', variables=['x', 'dx', 't'], ic=(-2, 2),
@@ -28,6 +38,18 @@ MODELS = {
                    ('dy', 'mul(aff(x), y)', [Node('mul', 'mul', 2),
                                               Node('aff', 'aff', 1, [('gamma', -0.4, 0.04), ('delta', 0.1, 0.01)])]),
                ]),
+    'lorenz': dict(title='Lorenz', variables=['x', 'y', 'z'], ic=(1, 10), rhs=lorenz_rhs,
+                   equations=[
+                       ('dx', 'sub(x, y)', [Node('sub', 'sub', 2, [('neg_sigma', -10.0, 0.5)])]),
+                       ('dy', 'add3(mul(x, z), x, y)', [
+                           Node('add3', 'lin', 3, [('c_xz', -1.0, 0.0), ('rho', 28.0, 1.0), ('c_y', -1.0, 0.0)]),
+                           Node('mul', 'mul', 2),
+                       ]),
+                       ('dz', 'add(mul(x, y), z)', [
+                           Node('add', 'lin', 2, [('c_xy', 1.0, 0.0), ('neg_beta', -8 / 3, 0.1)]),
+                           Node('mul', 'mul', 2),
+                       ]),
+                   ]),
     # изотермическая МГД (The Well): ∂ρ/∂t = -∇·(ρv), ∂(ρv)/∂t = -∇·(ρvv - BB) - c²∇ρ, ∂B/∂t = ∇×(v×B)
     'mhd': dict(title='Isothermal MHD', variables=['rho', 'v', 'B'], types='SVV',
                 equations=[

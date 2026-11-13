@@ -85,8 +85,9 @@ def restore(method, P, ins, types, eps=1e-4, prize=0.5):
             raise ImportError('pcst_fast is not installed')
         chosen = _pcst(P, nf, prize, eps)
         if method == 'kmst':
-            P[:, :nf] = 0
-            P[chosen[:, 0], chosen[:, 1]] = P[chosen[:, 1], chosen[:, 0]] = 1
+            if len(chosen):
+                P[:, :nf] = 0
+                P[chosen[:, 0], chosen[:, 1]] = P[chosen[:, 1], chosen[:, 0]] = 1
             base = 'dfs'
         else:
             for i, j in chosen:

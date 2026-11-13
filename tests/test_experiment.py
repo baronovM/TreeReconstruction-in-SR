@@ -34,6 +34,16 @@ class TestData(unittest.TestCase):
             data, ys = exp.simulate(exp.sample_params(rng), rng)
             with self.subTest(model=name):
                 self.assertEqual([np.shape(y) for y in ys], shapes)
+
+    def test_lorenz_trees_match_reference_dynamics(self):
+        rng = np.random.default_rng(0)
+        exp = Experiment('lorenz')
+        values = exp.sample_params(rng)
+        data, ys = exp.simulate(values, rng, T=2, n=100)
+        for eq, y in zip(exp.eqs, ys, strict=True):
+            with self.subTest(target=eq.target):
+                self.assertEqual(y.shape, (100,))
+                np.testing.assert_allclose(eq.G.evaluate(eq.tree, data, values), y, atol=1e-10)
                 self.assertTrue(all(np.isfinite(y).all() for y in ys))
 
 
