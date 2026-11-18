@@ -51,10 +51,12 @@ def plot_accuracy(name, tag, alphas, acc, zss_mean, methods=METHODS):
     plt.close(fig)
 
 
-def plot_summary(parts=(('vdp', ''), ('lv', '_system'), ('mhd', '_system')), method='prim'):
+def plot_summary(parts=(('vdp', ''), ('lv', '_system'), ('lorenz', '_system'), ('mhd', '_system')), method='prim'):
     # сводка: алгоритм Прима, три критерия, точный (сплошная) и расширенный (пунктир) словари
-    fig, axes = plt.subplots(1, len(parts), figsize=(18, 6), sharey=True)
-    for ax, (name, part) in zip(axes, parts):
+    columns = min(len(parts), 3) if len(parts) != 4 else 2
+    rows = (len(parts) + columns - 1) // columns
+    fig, axes = plt.subplots(rows, columns, figsize=(6 * columns, 4.5 * rows + 1), sharey=True, squeeze=False)
+    for ax, (name, part) in zip(axes.flat, parts):
         for tag, ls in [('exact_dict', '-'), ('extra_dict', '--')]:
             alphas, methods, _, acc = load(name, tag + part)
             a = list(methods).index(method)
@@ -63,8 +65,11 @@ def plot_summary(parts=(('vdp', ''), ('lv', '_system'), ('mhd', '_system')), met
                         label=f'{TITLES[crit]}, {tag.replace("_", " ")}')
         ax.set(title=MODELS[name]['title'], xlabel=r'noise level $\alpha$')
         grid(ax)
-    axes[0].set_ylabel('accuracy')
-    fig.legend(*axes[0].get_legend_handles_labels(), loc='lower center', ncol=2, frameon=False)
+    for ax in axes[:, 0]:
+        ax.set_ylabel('accuracy')
+    for ax in list(axes.flat)[len(parts):]:
+        ax.set_visible(False)
+    fig.legend(*axes[0, 0].get_legend_handles_labels(), loc='lower center', ncol=2, frameon=False)
     fig.tight_layout(rect=(0, 0.14, 1, 1))
     fig.savefig(ex.FIG / 'summary.png', dpi=150)
     plt.close(fig)
