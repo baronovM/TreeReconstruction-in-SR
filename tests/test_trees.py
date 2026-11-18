@@ -27,23 +27,23 @@ class TestMatrix(unittest.TestCase):
         eq = vdp()
         self.assertEqual(eq.G.rows, ['*', 'add3', 'mul', 'aff', 'sq', 'sin'])
         self.assertEqual(eq.G.cols, ['add3', 'mul', 'aff', 'sq', 'sin', 'x', 'dx', 't'])
-        self.assertEqual(eq.M[0].tolist(), [1, 0, 0, 0, 0, 0, 0, 0])  # корень -> add3
-        self.assertEqual(eq.M.sum(), len(eq.tree))  # рёбра дерева + ребро из корня
+        self.assertEqual(eq.M[0].tolist(), [1, 0, 0, 0, 0, 0, 0, 0])  # root -> add3
+        self.assertEqual(eq.M.sum(), len(eq.tree))  # Tree edges plus the edge from the root.
 
     def test_invalid_matrix(self):
         eq = vdp()
-        for i, j in [(2, 6), (0, 5)]:  # убрать ребро mul -> dx; добавить второго ребёнка корню
+        for i, j in [(2, 6), (0, 5)]:  # Remove mul -> dx and add a second child to the root.
             M = eq.M.copy()
             M[i, j] = 1 - M[i, j]
             with self.subTest(edge=(i, j)), self.assertRaises(ValueError):
                 eq.G.from_matrix(M)
 
     def test_typed_slots(self):
-        # МГД: аргументы раскладываются по типам, а не по порядку столбцов
+        # MHD assigns arguments to slots by type.
         eq = Experiment('mhd').eqs[0]
         self.assertEqual(str(eq.G.from_matrix(eq.M)), 'div(mul(rho, v))')
         M = eq.M.copy()
-        M[2, eq.G.cols.index('rho')], M[2, eq.G.cols.index('B')] = 0, 1  # mul(SV) получает два вектора
+        M[2, eq.G.cols.index('rho')], M[2, eq.G.cols.index('B')] = 0, 1  # mul(SV) receives two vectors.
         with self.assertRaises(ValueError):
             eq.G.from_matrix(M)
 
@@ -68,7 +68,7 @@ class TestSympy(unittest.TestCase):
     def test_vector_operators(self):
         v = sp.Matrix([Field('v' + a) for a in 'xyz'])
         rho = Field('rho')
-        self.assertEqual(div(curl(v)), 0)  # смешанные производные упорядочены: vx_yz = vx_zy
+        self.assertEqual(div(curl(v)), 0)  # Mixed derivatives use a canonical order, so vx_yz = vx_zy.
         self.assertEqual(sp.expand(D(rho * v[0], 'x') - Field('rho_x') * v[0] - rho * Field('vx_x')), 0)
 
 
@@ -77,8 +77,8 @@ class TestTreeOps(unittest.TestCase):
         G = Grammar([Node('mul', 'mul', 2), Node('sq', 'sq', 1)], ['x', 'y'])
         a, b, c = G.parse('mul(x, sq(y))'), G.parse('mul(sq(y), x)'), G.parse('mul(x, sq(x))')
         self.assertEqual(G.zss_distance(a, a), 0)
-        self.assertEqual(G.zss_distance(a, b), 0)  # порядок аргументов не важен
-        self.assertEqual(G.zss_distance(a, c), 1)  # одна замена метки
+        self.assertEqual(G.zss_distance(a, b), 0)  # Argument order does not affect the distance.
+        self.assertEqual(G.zss_distance(a, c), 1)  # One label substitution.
 
     def test_subtree_and_swap(self):
         eq = vdp()

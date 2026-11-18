@@ -1,4 +1,4 @@
-# Картинки: точность от уровня шума, сводка, фазовый портрет, M и деревья. Всё сохраняется в experiment.FIG.
+# Accuracy versus noise level, summary, phase portrait, M, and trees. Save everything under experiment.FIG.
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -28,7 +28,7 @@ def grid(ax):
 
 
 def plot_accuracy(name, tag, alphas, acc, zss_mean, methods=METHODS):
-    # tag = '<словарь>_<часть>'; тонкие линии — повторы, жирная — среднее
+    # tag = '<dictionary>_<part>'. Thin lines show repeats and the thick line shows their mean.
     panels = list(acc.items()) + [('zss', zss_mean)]
     fig, axes = plt.subplots(2, 3, figsize=(16, 10), sharex=True)
     colors = plt.cm.tab10.colors
@@ -52,7 +52,7 @@ def plot_accuracy(name, tag, alphas, acc, zss_mean, methods=METHODS):
 
 
 def plot_summary(parts=(('vdp', ''), ('lv', '_system'), ('lorenz', '_system'), ('mhd', '_system')), method='prim'):
-    # сводка: алгоритм Прима, три критерия, точный (сплошная) и расширенный (пунктир) словари
+    # Summary for Prim and three criteria. Solid lines show the exact dictionary and dashed lines show the extended dictionary.
     columns = min(len(parts), 3) if len(parts) != 4 else 2
     rows = (len(parts) + columns - 1) // columns
     fig, axes = plt.subplots(rows, columns, figsize=(6 * columns, 4.5 * rows + 1), sharey=True, squeeze=False)
@@ -76,7 +76,7 @@ def plot_summary(parts=(('vdp', ''), ('lv', '_system'), ('lorenz', '_system'), (
 
 
 def plot_phase(exp, rng):
-    # только для моделей с ОДУ: фазовый портрет при средних параметрах и траектории при случайных
+    # For ODE models, plot the phase portrait at mean parameters and trajectories at sampled parameters.
     label = lambda v: ', '.join(f'${sp.latex(p)}={v[p]:.3g}$' for p, (_, s) in exp.prior.items() if s > 0)
     mean = {p: m for p, (m, _) in exp.prior.items()}
     u, w = exp.model['variables'][:2]
@@ -113,7 +113,7 @@ def draw_tree(ax, tree, title, variables):
 
 
 def plot_tree(exp, rng, alpha=0.7, method='prim'):
-    # для каждого уравнения: M, зашумлённая M с восстановленными рёбрами, истинное и восстановленное деревья
+    # For each equation, show M, noisy M with recovered edges, and the true and recovered trees.
     for eq in exp.eqs:
         G, M = eq.G, eq.M
         P = noisy(M, rng.uniform(-1, 1, M.shape), alpha)

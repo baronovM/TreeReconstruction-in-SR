@@ -31,7 +31,7 @@ class TestRestore(unittest.TestCase):
                     self.assertTrue(np.array_equal(restore(method, P, eq.G.ins, eq.G.types), eq.M))
 
     def test_output_is_typed_adjacency(self):
-        # 0/1-матрица той же формы; ребро ведёт только в столбец типа, который есть среди слотов строки
+        # The 0/1 matrix has the same shape, and each edge targets a column whose type matches a slot in its row.
         rng = np.random.default_rng(1)
         for tag, eq in equations():
             P = noisy(eq.M, rng.uniform(-1, 1, eq.M.shape), 1.0)

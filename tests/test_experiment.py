@@ -25,7 +25,7 @@ class TestData(unittest.TestCase):
         divB = f[Field('Bx_x')] + f[Field('By_y')] + f[Field('Bz_z')]
         self.assertLess(np.abs(divB).max(), 1e-10)
         self.assertLessEqual(np.abs(f[Field('rho')] - 1).max(), 0.5 + 1e-12)
-        self.assertAlmostEqual(np.std([f[Field('v' + a)] for a in 'xyz']), 1)  # СКО по всем компонентам
+        self.assertAlmostEqual(np.std([f[Field('v' + a)] for a in 'xyz']), 1)  # Standard deviation across all components.
 
     def test_simulate_shapes(self):
         rng = np.random.default_rng(0)
@@ -56,7 +56,7 @@ class TestEquation(unittest.TestCase):
         self.assertEqual(s['zss'], 0)
         M = eq.M.copy()
         M[eq.G.rows.index('aff'), eq.G.cols.index('sq')] = 0
-        M[eq.G.rows.index('aff'), eq.G.cols.index('sq2')] = 1  # sq -> sq2: та же формула, другое дерево
+        M[eq.G.rows.index('aff'), eq.G.cols.index('sq2')] = 1  # sq -> sq2 gives the same formula with a different tree.
         M[eq.G.rows.index('sq2'), eq.G.cols.index('x')] = 1
         M[eq.G.rows.index('sq'), eq.G.cols.index('x')] = 0
         s = eq.structure(M)
@@ -76,7 +76,7 @@ class TestRun(unittest.TestCase):
             self.assertEqual(set(acc[p]), {'exact', 'sympy', 'zss=0', 'fit ls+lm', 'fit lm'})
             for c, v in acc[p].items():
                 self.assertEqual(v.shape[0], 2)
-                self.assertTrue((v[..., 0] == 1).all(), (p, c))  # без шума всё восстанавливается
+                self.assertTrue((v[..., 0] == 1).all(), (p, c))  # Recovery succeeds for all criteria at zero noise.
             self.assertTrue((zss[p][..., 0] == 0).all())
         with tempfile.TemporaryDirectory() as d, mock.patch('symreg.experiment.FIG', Path(d)):
             exp.save(alphas, acc, zss)

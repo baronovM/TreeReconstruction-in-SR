@@ -17,7 +17,7 @@ class TestParams(unittest.TestCase):
         eq = Experiment('vdp').eqs[0]
         params = list(eq.G.params.values())
         self.assertEqual(names(nonlinear_params(eq.expr, params)), ['omega'])
-        # a0 и a1 входят в одночлены вместе с mu, поэтому совместно линейны только mu, A, c_x
+        # a0 and a1 share monomials with mu, so only mu, A, and c_x are jointly linear.
         self.assertEqual(names(linear_params(eq.expr, params)), ['mu', 'A', 'c_x'])
 
     def test_no_nonlinear(self):
@@ -26,12 +26,12 @@ class TestParams(unittest.TestCase):
                 params = list(eq.G.params.values())
                 with self.subTest(model=name, target=eq.target):
                     self.assertEqual(nonlinear_params(eq.expr, params), [])
-                    # dm: k_v, k_B стоят в одночленах вместе с k_m, поэтому в МНК идут только k_m, c_p
+                    # In dm, k_v and k_B share monomials with k_m, so only k_m and c_p enter the least-squares fit.
                     expected = ['k_m', 'c_p'] if eq.target == 'dm' else names(params)
                     self.assertEqual(names(linear_params(eq.expr, params)), expected)
 
     def test_canonical(self):
-        # эквивалентность с точностью до перестановки аргументов и значений линейных коэффициентов
+        # Equivalence up to argument permutations and linear coefficient values.
         G = Grammar([Node('add', 'lin', 2, [('p', 1, 0), ('q', 1, 0)]), Node('mul', 'mul', 2),
                      Node('sin', 'sin', 1, [('w', 1, 0)])], ['x', 'y'])
         key = lambda s: canonical(G.to_sympy(G.parse(s)), G.params.values())
@@ -51,8 +51,8 @@ class TestFit(unittest.TestCase):
                 with self.subTest(target=eq.target, method=method):
                     err, found = fit(eq.expr, data, y, eq.G.prior, method)
                     self.assertLess(err, 1e-6)
-                    # отдельные параметры неидентифицируемы (ВдП: важны только mu*a0, mu*a1),
-                    # поэтому сравниваем коэффициенты при базисных функциях f = sum c_k phi_k
+                    # Individual parameters are unidentifiable (in Van der Pol, only mu*a0 and mu*a1 matter),
+                    # so compare the coefficients of the basis functions in f = sum c_k phi_k.
                     variables = eq.expr.free_symbols - set(eq.G.prior)
                     theta = nonlinear_params(eq.expr, eq.G.prior)
                     coefs = linearize(eq.expr, variables, theta)[1]
@@ -76,7 +76,7 @@ class TestFit(unittest.TestCase):
         self.assertGreater(fit(wrong, data, y, G.prior)[0], 1e-2)
 
     def test_vanishing_params(self):
-        # dot(cross(v, B), v) = 0 и curl(grad(rho)) = 0: k_m, k_v, k_B исчезают после раскрытия скобок
+        # dot(cross(v, B), v) = 0 and curl(grad(rho)) = 0, so k_m, k_v, and k_B vanish after expansion.
         exp = Experiment('mhd', extra=True)
         rng = np.random.default_rng(0)
         data, ys = exp.simulate(exp.sample_params(rng), rng)

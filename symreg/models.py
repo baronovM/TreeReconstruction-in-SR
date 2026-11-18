@@ -1,16 +1,16 @@
-# Описания физических моделей и синтетические данные для моделей без ОДУ (МГД).
+# Physical model definitions and synthetic data for models without ODEs (MHD).
 import numpy as np
 
 from .trees import AXES, E, Node
 
 
-# лишние узлы словаря, которых нет в истинной модели
+# Extra dictionary nodes absent from the true model.
 EXTRA = [Node('aff2', 'aff', 1, [('b0', 0.0, 0.0), ('b1', 1.0, 0.0)]), Node('mul2', 'mul', 2), Node('sq2', 'sq', 1)]
-# equations: (цель, формула с аргументами в порядке столбцов M, узлы словаря); types — типы переменных;
-# ode: производная состояния по состоянию s и значениям правых частей ys; 't' — последняя переменная.
-# Модель без ic — поля в пространстве: данные — снимок случайных гладких полей (Fields).
+# equations contains (target, formula with arguments in M column order, dictionary nodes). types lists variable types.
+# ode computes the state derivative from state s and right-hand-side values ys. 't' is the last variable.
+# A model without ic uses a snapshot of smooth random spatial fields (Fields).
 MODELS = {
-    # ẍ = mu (1 - x²) ẋ - x + A sin(omega t);  mu, A — линейные, omega — нелинейный
+    # ẍ = mu (1 - x²) ẋ - x + A sin(omega t). mu and A are linear, and omega is nonlinear.
     'vdp': dict(title='Forced Van der Pol', variables=['x', 'dx', 't'], ic=(-2, 2),
                 ode=lambda s, ys: [s[1], *ys],
                 equations=[('ddx', 'add3(mul(aff(sq(x)), dx), sin(t), x)', [
@@ -20,7 +20,7 @@ MODELS = {
                     Node('sq', 'sq', 1),
                     Node('sin', 'sin', 1, [('omega', 0.63, 0.02)]),
                 ])]),
-    # ẋ = x (alpha + beta y),  ẏ = y (gamma + delta x);  все параметры линейные, beta, gamma < 0
+    # ẋ = x (alpha + beta y), ẏ = y (gamma + delta x). All parameters are linear, with beta, gamma < 0.
     'lv': dict(title='Lotka-Volterra', variables=['x', 'y'], ic=(1, 10),
                ode=lambda s, ys: ys,
                equations=[
@@ -43,7 +43,7 @@ MODELS = {
                            Node('mul', 'mul', 2),
                        ]),
                    ]),
-    # изотермическая МГД (The Well): ∂ρ/∂t = -∇·(ρv), ∂(ρv)/∂t = -∇·(ρvv - BB) - c²∇ρ, ∂B/∂t = ∇×(v×B)
+    # Isothermal MHD (The Well): ∂ρ/∂t = -∇·(ρv), ∂(ρv)/∂t = -∇·(ρvv - BB) - c²∇ρ, ∂B/∂t = ∇×(v×B)
     'mhd': dict(title='Isothermal MHD', variables=['rho', 'v', 'B'], types='SVV',
                 equations=[
                     ('drho', 'div(mul(rho, v))', [Node('div', 'div', 1, [('k_rho', -1.0, 0.0)], 'V>S'),
@@ -67,8 +67,8 @@ MODELS = {
 
 
 class Fields(dict):
-    # Случайные гладкие периодические поля ρ = 1 + δρ, v, B (∇·B = 0) на сетке n³, гармоники |k| <= kmax.
-    # Производные — по запросу, спектрально: data[Field('vx_y')] = ∂vx/∂y; e_i — индикаторы компонент
+    # Smooth random periodic fields ρ = 1 + δρ, v, B (∇·B = 0) on an n³ grid with modes |k| <= kmax.
+    # Derivatives are computed spectrally on demand, e.g., data[Field('vx_y')] = ∂vx/∂y. e_i are component indicators.
     def __init__(self, rng, n=12, kmax=3):
         k = np.fft.fftfreq(n, 1 / n)
         self.K = np.stack(np.meshgrid(k, k, k, indexing='ij'))

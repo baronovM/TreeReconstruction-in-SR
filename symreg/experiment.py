@@ -1,5 +1,5 @@
-# Модель -> M -> шум U(-a, a) + нормировка -> восстановление -> проверка.
-# Система ОДУ разбивается на независимые уравнения: у каждой правой части своё дерево и своя M.
+# Build M from the model, add U(-a, a) noise, normalize, recover the tree, and validate it.
+# Treat the equations in an ODE system separately. Each right-hand side has its own tree and M.
 from pathlib import Path
 
 import numpy as np
@@ -13,8 +13,8 @@ from .recovery import METHODS, restore
 from .trees import Grammar
 
 FIT_METHODS = ['ls+lm', 'lm']
-FIT_TOL = 1e-3  # успех: NRMSE после переподбора параметров меньше порога
-FIG = Path('figures')  # результаты (.npz) и картинки
+FIT_TOL = 1e-3  # A fit succeeds when NRMSE after refitting falls below this threshold.
+FIG = Path('figures')  # Saved results (.npz) and figures.
 
 
 class Equation:
@@ -48,7 +48,7 @@ def noisy(M, U, alpha):
 
 
 class Experiment:
-    # модель из MODELS со словарём: точным (только узлы модели) или расширенным (extra=True, + лишние узлы)
+    # Select a model from MODELS and use its exact dictionary or include extra nodes with extra=True.
     def __init__(self, name, extra=False):
         self.name, self.model = name, MODELS[name]
         self.dict = 'extra_dict' if extra else 'exact_dict'
@@ -62,7 +62,7 @@ class Experiment:
         return {p: m + s * rng.standard_normal() for p, (m, s) in self.prior.items()}
 
     def simulate(self, values, rng, T=60.0, n=1500):
-        # данные не шумим: цели — точные значения правых частей
+        # Use exact right-hand-side values as targets.
         if 'ic' not in self.model:
             data = Fields(rng)
         else:
@@ -79,8 +79,8 @@ class Experiment:
         return data, [eq.G.evaluate(eq.tree, data, values) for eq in self.eqs]
 
     def run(self, repeats, trials, alphas, seed=0):
-        # Возвращает acc[part][критерий] и zss[part] — массивы [повтор, алгоритм, alpha], и число невалидных деревьев.
-        # Части: уравнения и, для систем, вся система (успех — все уравнения сразу, zss — сумма)
+        # Return acc[part][criterion] and zss[part] with axes [repeat, algorithm, alpha], plus the number of invalid trees.
+        # For a system, every equation must succeed on the same trial. Sum zss over equations.
         rng = np.random.default_rng(seed)
         crit = ['exact', 'sympy', 'zss=0'] + [f'fit {m}' for m in FIT_METHODS]
         shape = (len(METHODS), len(alphas))
@@ -93,7 +93,7 @@ class Experiment:
             for _ in range(trials):
                 hits, dists = [], []
                 for eq, y in zip(self.eqs, ys):
-                    U = rng.uniform(-1, 1, eq.M.shape)  # одна реализация шума, масштабируется alpha
+                    U = rng.uniform(-1, 1, eq.M.shape)  # Scale the same noise draw by each alpha.
                     h, d = np.zeros((len(crit), *shape)), np.zeros(shape)
                     for k, alpha in enumerate(alphas):
                         P = noisy(eq.M, U, alpha)
@@ -138,13 +138,13 @@ class Experiment:
 
 
 def load(name, tag):
-    # tag = '<словарь>_<часть>'; возвращает alphas, methods, zss, acc[критерий]
+    # tag = '<dictionary>_<part>'. Return alphas, methods, zss, and acc[criterion].
     d = dict(np.load(FIG / f'{name}_results_{tag}.npz'))
     return d.pop('alphas'), d.pop('methods'), d.pop('zss'), {k.replace('_', ' '): v for k, v in d.items()}
 
 
 def table(alphas, acc, methods=METHODS, every=8):
-    # средняя по повторам точность на каждом критерии в нескольких точках alpha
+    # Mean accuracy across repeats for each criterion at selected alpha values.
     step = len(alphas) // every
     rows = ['alpha: ' + str(alphas[::step].round(2).tolist())]
     for c, v in acc.items():

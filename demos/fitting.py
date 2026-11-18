@@ -1,4 +1,4 @@
-# Подбор параметров по данным: LS+LM против LM, локальные минимумы по omega.  python -m demos.fitting
+# Compare LS+LM and LM for fitting parameters and scan the local minima in omega. Run with python -m demos.fitting.
 import numpy as np
 
 from symreg.experiment import Experiment
@@ -8,7 +8,7 @@ exp = Experiment('vdp')
 eq, G = exp.eqs[0], exp.eqs[0].G
 rng = np.random.default_rng(0)
 values = exp.sample_params(rng)
-data, (y,) = exp.simulate(values, rng)  # данные точные, шум только в M
+data, (y,) = exp.simulate(values, rng)  # Use exact data and perturb only M.
 params = list(G.params.values())
 print('model:', eq.expr)
 print('nonlinear:', nonlinear_params(eq.expr, params), '| least squares over:', linear_params(eq.expr, params))
@@ -23,7 +23,7 @@ print('mu, a0, a1 are identifiable only as products mu*a0, mu*a1: different valu
 wrong = G.parse('add3(mul(aff(sq(dx)), x), sin(t), x)')
 print('\nwrong tree', wrong, f'NRMSE={fit(G.to_sympy(wrong), data, y, G.prior)[0]:.2f}')
 
-# omega фиксирован, остальное — МНК: функционал ошибки по omega имеет минимумы с шагом ≈ pi/T
+# Fix omega and fit the other parameters by least squares. The minima in omega are spaced about pi/T apart.
 omega = G.params['omega']
 grid = np.arange(0.45, 0.80, 0.0025)
 errs = np.array([fit(eq.expr.subs(omega, w), data, y, G.prior)[0] for w in grid])

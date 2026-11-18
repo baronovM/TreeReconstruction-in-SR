@@ -1,4 +1,4 @@
-# Перерисовать все картинки по сохранённым .npz без прогона экспериментов.  python -m demos.figures
+# Regenerate all figures from saved .npz files. Run with python -m demos.figures.
 import numpy as np
 
 from symreg.experiment import FIG, Experiment, load

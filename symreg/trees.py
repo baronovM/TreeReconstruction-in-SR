@@ -1,6 +1,6 @@
-# Деревья формул на DEAP: дерево <-> матрица смежности, поддеревья, SymPy, zss, правдоподобие.
-# Матрица M: строки — корень '*' + функции, столбцы — функции + переменные.
-# Типы DEAP: скаляр — float, вектор — Vec, тензор 2-го ранга — Ten; сигнатура узла 'SV>V'.
+# DEAP formula trees, adjacency matrix conversion, subtrees, SymPy, zss, and likelihood.
+# M rows contain the root '*' and functions. Columns contain functions and variables.
+# DEAP types are float for scalars, Vec for vectors, and Ten for rank-2 tensors. Example node signature: 'SV>V'.
 from dataclasses import dataclass, field
 from functools import reduce
 from operator import add
@@ -15,21 +15,21 @@ class Vec: pass
 class Ten: pass
 TYPES = {'S': float, 'V': Vec, 'T': Ten}
 AXES = 'xyz'
-E = sp.symbols('e_x e_y e_z')  # векторное выражение f -> скаляр sum_i e_i f_i
+E = sp.symbols('e_x e_y e_z')  # Convert vector expression f to the scalar sum_i e_i f_i.
 
 
 class Field(sp.Symbol):
-    pass  # значение поля или его производной в точке: rho, vx, vx_y, vx_yz
+    pass  # Field or derivative value at a point, e.g., rho, vx, vx_y, or vx_yz.
 
 
-def D(e, a):  # d/da по правилу цепочки; смешанные производные упорядочены
+def D(e, a):  # Differentiate with respect to a using the chain rule. Mixed derivatives use a canonical order.
     def d(s):
         base, _, axes = s.name.partition('_')
         return Field(f'{base}_{"".join(sorted(axes + a))}')
     return sp.Add(*[sp.diff(e, s) * d(s) for s in e.atoms(Field)])
 
 
-def div(a):  # вектор -> скаляр, тензор -> вектор (свёртка по первому индексу)
+def div(a):  # Maps vectors to scalars and tensors to vectors by contracting the first index.
     r = sum((a[i, :].applyfunc(lambda e: D(e, x)) for i, x in enumerate(AXES)), sp.zeros(1, a.cols))
     return r[0] if a.cols == 1 else r.T
 
@@ -39,15 +39,15 @@ def curl(a):
     return sp.Matrix([d(2, 'y') - d(1, 'z'), d(0, 'z') - d(2, 'x'), d(1, 'x') - d(0, 'y')])
 
 
-op = lambda f: lambda w: lambda *a: sp.Mul(*w) * f(*a)  # параметры узла — общий множитель
-# Примитивы строят SymPy-выражения; w — символы параметров узла.
+op = lambda f: lambda w: lambda *a: sp.Mul(*w) * f(*a)  # The product of the node parameters scales the result.
+# Primitives build SymPy expressions, with w denoting the node parameter symbols.
 KINDS = {
     'lin': lambda w: lambda *a: reduce(add, (wi * ai for wi, ai in zip(w, a))),
     'aff': lambda w: lambda a: w[0] + w[1] * a,
     'sin': lambda w: lambda a: sp.sin(w[0] * a),
     'mul': op(lambda a, b: a * b),
     'sub': op(lambda a, b: a - b),
-    'sq': op(lambda a: a * a.T if isinstance(a, sp.MatrixBase) else a ** 2),  # вектор: a⊗a
+    'sq': op(lambda a: a * a.T if isinstance(a, sp.MatrixBase) else a ** 2),  # For vectors, compute a⊗a.
     'dot': op(lambda a, b: a.dot(b)),
     'cross': op(lambda a, b: a.cross(b)),
     'outer': op(lambda a, b: a * b.T),
@@ -62,8 +62,8 @@ class Node:
     name: str
     kind: str
     arity: int
-    params: list = field(default_factory=list)  # [(имя, матожидание, ст. отклонение)]
-    sig: str = None  # типы аргументов и результата, 'SV>V'; по умолчанию всё скаляры
+    params: list = field(default_factory=list)  # [(name, mean, standard deviation)]
+    sig: str = None  # Argument and return types, e.g., 'SV>V'. Defaults to all scalars.
 
     @property
     def ins(self):
@@ -75,14 +75,14 @@ class Node:
 
 
 class Grammar:
-    # types — типы переменных ('SVV'); векторная переменная v — поле с компонентами vx, vy, vz
+    # types specifies variable types, e.g., 'SVV'. Vector variable v has field components vx, vy, and vz.
     def __init__(self, nodes, variables, types=None, ret=float):
         self.nodes, self.variables = nodes, variables
         vtypes = [TYPES[c] for c in types or 'S' * len(variables)]
         self.rows = ['*'] + [n.name for n in nodes]
         self.cols = [n.name for n in nodes] + variables
-        self.ins = [[ret]] + [n.ins for n in nodes]  # слоты аргументов каждой строки M
-        self.types = [n.ret for n in nodes] + vtypes  # тип каждого столбца M
+        self.ins = [[ret]] + [n.ins for n in nodes]  # Argument slot types for each row of M.
+        self.types = [n.ret for n in nodes] + vtypes  # Type of each column of M.
         self.symbols = [sp.Matrix([Field(v + x) for x in AXES]) if t is Vec else Field(v)
                         for v, t in zip(variables, vtypes)]
         self.params = {p: sp.Symbol(p) for n in nodes for p, *_ in n.params}
@@ -108,7 +108,7 @@ class Grammar:
         nf, out = len(self.nodes), []
 
         def build(r, depth=0):
-            # дети раскладываются по слотам по типу, дети одного типа — в порядке столбцов
+            # Assign children to slots by type, using column order within each type.
             kids, args = list(np.flatnonzero(M[r])), []
             for t in self.ins[r]:
                 j = next((j for j in kids if self.types[j] is t), None)
@@ -134,7 +134,7 @@ class Grammar:
         return sp.Add(*[e * c for e, c in zip(E, r)]) if isinstance(r, sp.MatrixBase) else r
 
     def evaluate(self, tree, data, values):
-        # data — {символ переменной: массив}; values — {символ параметра: число}
+        # data maps variable symbols to arrays. values maps parameter symbols to numbers.
         expr = self.to_sympy(tree).subs(values)
         xs = sorted(expr.free_symbols, key=str)
         return sp.lambdify(xs, expr, 'numpy')(*[data[x] for x in xs])
@@ -145,7 +145,7 @@ class Grammar:
         for a, b in edges:
             kids[a].append(b)
 
-        def build(i):  # дети отсортированы: сравнение не зависит от порядка аргументов
+        def build(i):  # Sort children to make the distance independent of argument order.
             return zss.Node(labels[i], sorted((build(j) for j in kids[i]), key=str))
         return build(0)
 
@@ -163,6 +163,6 @@ def swap_subtrees(t1, i1, t2, i2):
 
 
 def log_likelihood(M, P, eps=1e-9):
-    # рёбра — независимые бернуллиевские величины с вероятностями P
+    # Edges are independent Bernoulli variables with probabilities P.
     P = np.clip(P, eps, 1 - eps)
     return float((M * np.log(P) + (1 - M) * np.log(1 - P)).sum())

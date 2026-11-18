@@ -1,5 +1,5 @@
-# Общий сценарий эксперимента: параметры по умолчанию задаёт файл модели,
-# их можно переопределить из командной строки; --quick — быстрый прогон в figures/quick, не затирая результаты.
+# Shared experiment runner. Each model file sets its defaults,
+# which the CLI can override. --quick saves a short run in figures/quick and preserves the main results.
 import argparse
 from pathlib import Path
 

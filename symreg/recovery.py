@@ -1,5 +1,5 @@
-# Восстановление дерева по матрице вероятностей: порт RestoreMatrix из opt_pcst.ipynb.
-# столбец 0 — корень (всегда 0), затем функции, затем переменные.
+# Recover a tree from its probability matrix. Port of RestoreMatrix from opt_pcst.ipynb.
+# Columns start with the root (always zero), followed by functions and variables.
 import numpy as np
 
 try:
@@ -8,7 +8,7 @@ except ImportError:
     pcst_fast = None
 
 
-# ins[i] — типы слотов аргументов строки i, of[t] — маска столбцов типа t
+# ins[i] lists the argument slot types for row i. of[t] masks the columns of type t.
 def _greedy(P, ins, of, nf, eps, depth_first):
     A, used, queue = np.zeros(P.shape, int), {0}, [0]
     threshold = max(eps, 0)
@@ -76,8 +76,8 @@ def _pcst(P, nf, prize, eps):
 
 
 def restore(method, P, ins, types, eps=1e-4, prize=0.5):
-    # P: (1 + F) x (F + V) в раскладке trees.Grammar; ins, types — Grammar.ins, Grammar.types.
-    # Слот типа t заполняется только столбцом типа t. Возвращает 0/1-матрицу той же формы, что P
+    # P has shape (1 + F) x (F + V) in the trees.Grammar layout. ins and types come from Grammar.
+    # Each slot takes a column of the same type. The returned binary matrix has the same shape as P.
     P = np.hstack([np.zeros((P.shape[0], 1)), P])
     nf, types = P.shape[0], [None] + list(types)
     of = {t: np.array([c is t for c in types]) for s in ins for t in s}

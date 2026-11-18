@@ -1,17 +1,17 @@
-# Подбор параметров формулы: МНК для линейных + LM для нелинейных (variable projection) или LM сразу на всё.
+# Fit formula parameters with variable projection (least squares + LM) or LM for all parameters.
 import numpy as np
 import sympy as sp
 from scipy.optimize import least_squares
 
 
 def nonlinear_params(expr, params):
-    # параметр нелинейный, если он стоит внутри аргумента какой-либо функции (sin и т.п.)
+    # A parameter is nonlinear if it appears inside an argument to a function such as sin.
     inside = set().union(*(f.free_symbols for f in expr.atoms(sp.Function)))
     return sorted(inside & set(params), key=str)
 
 
 def linearize(expr, variables, theta):
-    # f = sum_k c_k * phi_k(x; theta): коэффициенты c_k — полиномы от линейных параметров
+    # f = sum_k c_k * phi_k(x; theta), where c_k are polynomials in the linear parameters.
     groups = {}
     for term in sp.Add.make_args(sp.expand(expr)):
         coef, basis = term.as_independent(*variables, *theta, as_Add=False)
@@ -20,7 +20,7 @@ def linearize(expr, variables, theta):
 
 
 def canonical(expr, params):
-    # класс эквивалентности модели с точностью до значений линейных коэффициентов
+    # Model equivalence class up to the values of linear coefficients.
     variables = expr.free_symbols - set(params)
     return frozenset(linearize(expr, variables, nonlinear_params(expr, params))[0])
 
@@ -30,8 +30,8 @@ def _columns(fs, args, shape):
 
 
 def linear_params(expr, params):
-    # набор параметров, по которым выражение линейно совместно (жадно, в порядке узлов):
-    # в каждом одночлене не больше одного такого параметра, и в первой степени
+    # Greedily select jointly linear parameters in node order.
+    # Each monomial contains at most one selected parameter, to the first power.
     nonlin, lin = nonlinear_params(expr, params), []
     terms = [{b: d for b, d in t.as_powers_dict().items() if b in params} for t in sp.Add.make_args(sp.expand(expr))]
     for p in params:
@@ -41,11 +41,11 @@ def linear_params(expr, params):
 
 
 def fit(expr, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7)):
-    # data: {символ переменной: массив}; prior: {символ параметра: (матожидание, ст.откл.)}.
-    # ls+lm: МНК по совместно линейным параметрам при фиксированных остальных, остальные — LM (variable projection).
-    # Мультистарт: параметры внутри функций = mean + k*std. Возвращает (NRMSE, значения параметров) лучшего старта
-    # параметр при тождественно нулевом подвыражении (dot(cross(v, B), v)) пропадает после раскрытия скобок:
-    # на функцию он не влияет, но в нераскрытом виде ломал бы проверку совместной линейности
+    # data maps variable symbols to arrays. prior maps parameter symbols to (mean, standard deviation).
+    # ls+lm fits the jointly linear parameters by least squares with the other parameters fixed and optimizes those with LM.
+    # Use mean + k*std starts for parameters inside functions. Return (NRMSE, parameter values) for the best start.
+    # Parameters multiplying identically zero terms such as dot(cross(v, B), v) vanish after expansion.
+    # They have no effect on the function and can interfere with the joint-linearity check before expansion.
     expr = expr.subs({p: 0 for p in expr.free_symbols - sp.expand(expr).free_symbols if p in prior})
     params = [p for p in prior if p in expr.free_symbols]
     variables = sorted(expr.free_symbols - set(params), key=str)
@@ -55,7 +55,7 @@ def fit(expr, data, y, prior, method='ls+lm', ks=np.linspace(-3, 3, 7)):
     if method == 'ls+lm':
         lin = linear_params(expr, params)
         theta = [p for p in params if p not in lin]
-        # f = f0(θ) + Σ_p p · ∂f/∂p(θ), p из lin
+        # f = f0(θ) + Σ_p p · ∂f/∂p(θ), for p in lin.
         phi = sp.lambdify([*variables, *theta], [expr.subs({p: 0 for p in lin}), *(sp.diff(expr, p) for p in lin)], 'numpy')
 
         def solve(th):
